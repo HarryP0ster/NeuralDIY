@@ -1,3 +1,5 @@
+# About
+
 Neural Network DIY based off "Make Your Own Neural Network" by Tariq Rashid
 
 # Build the project
