@@ -1,6 +1,6 @@
 Neural Network DIY based off "Make Your Own Neural Network" by Tariq Rashid
 
-#Build the project
+# Build the project
 
 ```
 cmake build -S <ROOT> -B <ROOT>/build
