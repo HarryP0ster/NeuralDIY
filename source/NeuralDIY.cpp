@@ -222,7 +222,6 @@ void ReadCSV(const std::string from, csv_data& to)
     std::ifstream file;
 
     std::filesystem::path filepath = std::filesystem::path(root)
-        .append("Datasets\\")
         .append(from);
 
     file.open(filepath);
@@ -346,8 +345,8 @@ int main(int argc, const char** argv)
     csv_data train;
     csv_data validation;
 
-    ReadCSV("mnist_train.csv", train);
-    ReadCSV("mnist_test.csv", validation);
+    ReadCSV("Datasets\\mnist_train.csv", train);
+    ReadCSV("TestImage.csv", validation);
 
     NeuralNetwork net(train[0].second.Length(), 200, 10, 0.01);
     for (size_t e = 0; e < 5; e++)
