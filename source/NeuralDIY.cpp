@@ -9,9 +9,6 @@
 
 std::filesystem::path root;
 
-/* label, values */
-//using csv_data = std::unordered_multimap<char, std::vector<double>>;
-
 class Matrix
 {
 public:
@@ -70,6 +67,16 @@ public:
 
         for (size_t i = 0; i < R * C; i++)
             Out.M[i] = M[i] + M1.M[i];
+
+        return Out;
+    }
+
+    Matrix operator-(const Matrix& M1) const
+    {
+        Matrix Out(R, C);
+
+        for (size_t i = 0; i < R * C; i++)
+            Out.M[i] = M[i] - M1.M[i];
 
         return Out;
     }
@@ -186,14 +193,26 @@ Matrix Relu(const Matrix& Input)
     return Output;
 }
 
-Matrix Propagate(const Matrix& errors, const Matrix& output)
+Matrix PropagateSigmoid(const Matrix& errors, const Matrix& output)
 {
     assert(errors.RowCount() == output.RowCount() && errors.ColumnCount() == output.ColumnCount());
 
     Matrix temp(errors.RowCount(), errors.ColumnCount());
 
     for (size_t i = 0; i < errors.RowCount() * errors.ColumnCount(); i++)
-        temp.M[i] = errors.M[i] * output.M[i] * (1.0 - output.M[i]);
+        temp.M[i] = errors.M[i] * output.M[i] * (1.0 - output.M[i]); // e * g`(x)
+
+    return temp;
+}
+
+Matrix PropagateRelu(const Matrix& errors, const Matrix& output)
+{
+    assert(errors.RowCount() == output.RowCount() && errors.ColumnCount() == output.ColumnCount());
+
+    Matrix temp(errors.RowCount(), errors.ColumnCount());
+
+    for (size_t i = 0; i < errors.RowCount() * errors.ColumnCount(); i++)
+        temp.M[i] = errors.M[i] * (output.M[i] <= 0.0 ? 0.0 : 1.0); // e * g`(x)
 
     return temp;
 }
@@ -249,12 +268,12 @@ struct NeuralNetwork
     {
         for (size_t i = 0; i < Hidden * Input; i++)
         {
-            WeightsIH.M[i] = static_cast<double>(rand()) / static_cast<double>(RAND_MAX) / 1000.0;
+            WeightsIH.M[i] = (static_cast<double>(rand()) / static_cast<double>(RAND_MAX)) / 1000.0;
         }
 
         for (size_t i = 0; i < Hidden * Output; i++)
         {
-            WeightsHO.M[i] = static_cast<double>(rand()) / static_cast<double>(RAND_MAX) / 1000.0;
+            WeightsHO.M[i] = (static_cast<double>(rand()) / static_cast<double>(RAND_MAX)) / 1000.0;
         }
     }
 
@@ -266,7 +285,7 @@ struct NeuralNetwork
     vector Predict(const vector& InputV)
     {
         Matrix input_to_hidden = std::move(WeightsIH * InputV.T());
-        Matrix hidden_output = std::move(Sigmoid(input_to_hidden));
+        Matrix hidden_output = std::move(Relu(input_to_hidden));
         Matrix hidden_to_output = std::move(WeightsHO * hidden_output);
         Matrix output = std::move(Sigmoid(hidden_to_output));
 
@@ -276,7 +295,7 @@ struct NeuralNetwork
     void Train(const vector& InputV, const vector& ValidationV)
     {
         Matrix input_to_hidden = std::move(WeightsIH * InputV.T());
-        Matrix hidden_output = std::move(Sigmoid(input_to_hidden));
+        Matrix hidden_output = std::move(Relu(input_to_hidden));
         Matrix hidden_to_output = std::move(WeightsHO * hidden_output);
         Matrix output = std::move(Sigmoid(hidden_to_output));
         Matrix errors(WeightsHO.RowCount(), 1);
@@ -285,8 +304,8 @@ struct NeuralNetwork
             errors[j][0] = ValidationV[j] - output[j][0];
 
         Matrix hidden_errors = std::move(WeightsHO.T() * errors);
-        Matrix OE = std::move(Propagate(errors, output) * hidden_output.T());
-        Matrix IE = std::move(Propagate(hidden_errors, hidden_output) * InputV);
+        Matrix OE = std::move(PropagateSigmoid(errors, output) * hidden_output.T());
+        Matrix IE = std::move(PropagateRelu(hidden_errors, hidden_output) * InputV);
 
         for (size_t i = 0; i < WeightsHO.RowCount() * WeightsHO.ColumnCount(); i++)
             WeightsHO.M[i] += OE.M[i] * LearningRate;
@@ -327,12 +346,14 @@ int main(int argc, const char** argv)
     csv_data train;
     csv_data validation;
 
-    ReadCSV("mnist_train_100.csv", train);
-    ReadCSV("mnist_test_10.csv", validation);
+    ReadCSV("mnist_train.csv", train);
+    ReadCSV("mnist_test.csv", validation);
 
-    NeuralNetwork net(train[0].second.Length(), 200, 10, 0.2);
-    for (size_t e = 0; e < 30; e++)
+    NeuralNetwork net(train[0].second.Length(), 200, 10, 0.01);
+    for (size_t e = 0; e < 5; e++)
     {
+        printf("epoch %d\n", int(e));
+
         for (size_t i = 0; i < train.size(); i++)
         {
             vector targets(10, 0.01);
